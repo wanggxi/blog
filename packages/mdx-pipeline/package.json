@@ -1,0 +1,27 @@
+{
+	"name": "@blog/mdx-pipeline",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"build": "tsc --noEmit",
+		"lint": "biome check src",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@blog/content-schema": "workspace:*",
+		"remark-gfm": "4.0.1",
+		"remark-mdx": "3.1.1",
+		"remark-parse": "11.0.0",
+		"unified": "11.0.5"
+	},
+	"devDependencies": {
+		"@types/mdast": "4.0.4",
+		"@types/unist": "3.0.3",
+		"vitest": "4.1.11"
+	}
+}

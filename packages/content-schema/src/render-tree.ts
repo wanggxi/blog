@@ -31,6 +31,28 @@ export type RenderNode =
 	  };
 
 const scalarSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+const linkSchema = z.string().refine((value) => {
+	if (/^(?:\/|#|\.\.?\/)/.test(value)) {
+		return true;
+	}
+
+	try {
+		return ["http:", "https:", "mailto:"].includes(new URL(value).protocol);
+	} catch {
+		return false;
+	}
+}, "Link URL uses an unsafe or unsupported protocol");
+const imageSourceSchema = z.string().refine((value) => {
+	if (/^(?:\/|\.\.?\/)/.test(value)) {
+		return true;
+	}
+
+	try {
+		return ["http:", "https:"].includes(new URL(value).protocol);
+	} catch {
+		return false;
+	}
+}, "Image URL uses an unsafe or unsupported protocol");
 
 export const renderNodeSchema: z.ZodType<RenderNode> = z.lazy(() =>
 	z.discriminatedUnion("type", [
@@ -64,13 +86,13 @@ export const renderNodeSchema: z.ZodType<RenderNode> = z.lazy(() =>
 		z.object({
 			alt: z.string(),
 			height: z.int().positive().optional(),
-			src: z.url(),
+			src: imageSourceSchema,
 			type: z.literal("image"),
 			width: z.int().positive().optional(),
 		}),
 		z.object({
 			children: z.array(renderNodeSchema),
-			href: z.url(),
+			href: linkSchema,
 			type: z.literal("link"),
 		}),
 		z.object({
