@@ -27,6 +27,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-blog}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-blog}
       PAYLOAD_SECRET: ${PAYLOAD_SECRET:?set PAYLOAD_SECRET in .env}
+      SITE_HOST: ${SITE_HOST}
       PUBLIC_CMS_URL: https://${ADMIN_HOST}
       PUBLIC_SITE_URL: https://${SITE_HOST}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
