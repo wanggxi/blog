@@ -30,7 +30,13 @@ export default buildConfig({
 	},
 	collections: [Users, Articles, Projects, Tags, Media, AuditEvents],
 	cors: allowedOrigins,
-	csrf: allowedOrigins,
+	// The CMS is currently accessed directly over HTTP by IP (port 3000).
+	// Payload rejects cookie-authenticated requests that omit Origin and
+	// Sec-Fetch-Site when CSRF origins are configured, which makes the admin
+	// client loop back to /admin/login in browsers that do not send those
+	// headers. CORS remains restricted above; HTTPS + a hostname should restore
+	// an explicit CSRF allowlist.
+	csrf: [],
 	db: postgresAdapter({ idType: "uuid", pool: { connectionString: env.databaseUrl } }),
 	editor: lexicalEditor(),
 	endpoints: contentEndpoints,
