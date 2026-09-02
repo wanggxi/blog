@@ -18,8 +18,11 @@ import { SiteSettings } from "./globals/SiteSettings";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const env = readRuntimeEnv(process.env);
-const allowedOrigins = [process.env.PUBLIC_SITE_URL, process.env.PUBLIC_CMS_URL].filter(
-	(value): value is string => Boolean(value),
+const hostOrigins = process.env.SITE_HOST
+	? [`http://${process.env.SITE_HOST}`, `https://${process.env.SITE_HOST}`]
+	: [];
+const allowedOrigins = [process.env.PUBLIC_SITE_URL, process.env.PUBLIC_CMS_URL, ...hostOrigins].filter(
+	(value, index, values): value is string => Boolean(value) && values.indexOf(value) === index,
 );
 const mediaBaseUrl = env.media?.publicUrl.replace(/\/$/, "");
 
