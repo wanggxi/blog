@@ -105,13 +105,20 @@ export const Articles: CollectionConfig = {
 		beforeValidate: [
 			async ({ data }) => {
 				if (!data || typeof data.publicationStatus !== "string") return data;
+				const status = data.publicationStatus as "draft" | "scheduled" | "published" | "archived";
+				const publishedAt =
+					typeof data.publishedAt === "string"
+						? data.publishedAt
+						: status === "published"
+							? new Date().toISOString()
+							: null;
 				const prepared = await prepareArticleForSave({
-					publishedAt: typeof data.publishedAt === "string" ? data.publishedAt : null,
+					publishedAt,
 					scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : null,
 					sourceMdx: typeof data.sourceMdx === "string" ? data.sourceMdx : "",
-					status: data.publicationStatus as "draft" | "scheduled" | "published" | "archived",
+					status,
 				});
-				return { ...data, ...prepared };
+				return { ...data, ...prepared, publishedAt };
 			},
 		],
 	},

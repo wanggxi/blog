@@ -4,6 +4,7 @@ import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { buildConfig } from "payload";
+import { zh } from "payload/i18n/zh";
 import sharp from "sharp";
 import { Articles } from "./collections/Articles";
 import { AuditEvents } from "./collections/AuditEvents";
@@ -41,6 +42,10 @@ export default buildConfig({
 	editor: lexicalEditor(),
 	endpoints: contentEndpoints,
 	globals: [SiteSettings],
+	i18n: {
+		fallbackLanguage: "zh",
+		supportedLanguages: { zh },
+	},
 	plugins: env.media
 		? [
 				s3Storage({
