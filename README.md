@@ -39,6 +39,6 @@ docker compose up -d
 docker compose ps
 ```
 
-Only Caddy exposes public ports. PostgreSQL and the CMS service stay on the private Compose network. The first visit to the admin URL creates the initial owner account when the users collection is empty.
+Only Caddy exposes public ports. PostgreSQL and the CMS service stay on the private Compose network. If R2 is not configured, uploaded media is retained in the `media-data` Docker volume. The first visit to the admin URL creates the initial owner account when the users collection is empty.
 
 Architecture and rollout details remain in [`docs/superpowers/specs/2026-09-02-blog-platform-design.md`](docs/superpowers/specs/2026-09-02-blog-platform-design.md) and [`docs/superpowers/plans/2026-09-02-blog-platform-implementation.md`](docs/superpowers/plans/2026-09-02-blog-platform-implementation.md).

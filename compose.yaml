@@ -41,6 +41,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    volumes:
+      - media-data:/workspace/apps/cms/media
 
   web:
     build:
@@ -97,4 +99,5 @@ volumes:
   caddy-config:
   caddy-data:
   minio-data:
+  media-data:
   postgres-data:
