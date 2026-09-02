@@ -6,7 +6,8 @@ A source-transplanted Next.js personal site from [`wan-kong/wankong.top`](https:
 
 - Next.js public site with the source project's pages, components, styles, animations, fonts, assets, and MDX posts
 - Payload admin at `/admin` for articles, projects, tags, media, site settings, and audit events
-- Payload content API at `/api/content/v1/*` remains available for CMS-managed content; the transplanted frontend currently renders its original MDX content
+- Payload content API at `/api/content/v1/*` remains available for CMS-managed content; the home page loads the latest published CMS articles in the browser and falls back to the bundled MDX posts if the CMS is unavailable
+- The `/blog` archive and article detail routes are still generated from bundled MDX at build time; a newly published CMS article appears on the home page immediately but does not yet have a generated detail page
 - Safe MDX compilation with a component allowlist
 - Cloudflare R2/S3-compatible media storage with local filesystem fallback
 - Docker Compose deployment with the transplanted frontend served as a static Next.js export
