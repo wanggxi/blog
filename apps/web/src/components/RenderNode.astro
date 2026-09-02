@@ -1,0 +1,101 @@
+---
+import type { RenderNode } from "@blog/content-schema";
+import RenderNodeView from "./RenderNode.astro";
+
+type Props = {
+	node: RenderNode;
+};
+
+const { node } = Astro.props;
+const HeadingTag = node.type === "heading" ? (`h${node.depth}` as const) : "div";
+const componentTitle =
+	node.type === "component" && typeof node.props.title === "string"
+		? node.props.title
+		: node.type === "component"
+			? node.name
+			: "";
+---
+
+{
+	node.type === "text" &&
+		(node.code ? (
+			<code>{node.value}</code>
+		) : node.bold && node.italic ? (
+			<strong><em>{node.value}</em></strong>
+		) : node.bold ? (
+			<strong>{node.value}</strong>
+		) : node.italic ? (
+			<em>{node.value}</em>
+		) : (
+			node.value
+		))
+}
+
+{
+	node.type === "paragraph" && (
+		<p>{node.children.map((child) => <RenderNodeView node={child} />)}</p>
+	)
+}
+
+{
+	node.type === "heading" && (
+		<HeadingTag id={node.id}>
+			{node.children.map((child) => <RenderNodeView node={child} />)}
+		</HeadingTag>
+	)
+}
+
+{
+	node.type === "link" && (
+		<a href={node.href}>
+			{node.children.map((child) => <RenderNodeView node={child} />)}
+		</a>
+	)
+}
+
+{
+	node.type === "blockquote" && (
+		<blockquote>{node.children.map((child) => <RenderNodeView node={child} />)}</blockquote>
+	)
+}
+
+{node.type === "code" && <pre><code data-language={node.language}>{node.value}</code></pre>}
+
+{
+	node.type === "image" && (
+		<img
+			src={node.src}
+			alt={node.alt}
+			width={node.width}
+			height={node.height}
+			loading="lazy"
+			decoding="async"
+		/>
+	)
+}
+
+{
+	node.type === "list" &&
+		(node.ordered ? (
+			<ol>{node.children.map((child) => <RenderNodeView node={child} />)}</ol>
+		) : (
+			<ul>{node.children.map((child) => <RenderNodeView node={child} />)}</ul>
+		))
+}
+
+{
+	node.type === "listItem" && (
+		<li>{node.children.map((child) => <RenderNodeView node={child} />)}</li>
+	)
+}
+
+{node.type === "thematicBreak" && <hr />}
+
+{
+	node.type === "component" && (
+		<aside class="content-component" data-component={node.name} data-variant={node.props.type}>
+			<header>{componentTitle}</header>
+			<div>{node.children.map((child) => <RenderNodeView node={child} />)}</div>
+		</aside>
+	)
+}

@@ -1,0 +1,12 @@
+---
+import type { RenderNode } from "@blog/content-schema";
+import RenderNodeView from "./RenderNode.astro";
+
+type Props = {
+	nodes: RenderNode[];
+};
+
+const { nodes } = Astro.props;
+---
+
+<>{nodes.map((node) => <RenderNodeView node={node} />)}</>

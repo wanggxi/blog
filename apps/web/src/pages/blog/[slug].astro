@@ -1,0 +1,62 @@
+---
+import type { PublishedArticle } from "@blog/content-schema";
+import RenderTree from "../../components/RenderTree.astro";
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import { ContentApiError, contentClient } from "../../lib/content-client";
+
+const slug = Astro.params.slug ?? "";
+let article: PublishedArticle | null = null;
+let unavailable = false;
+
+try {
+	article = await contentClient.getArticle(slug);
+} catch (error) {
+	if (error instanceof ContentApiError && error.code === "CONTENT_API_UNAVAILABLE") {
+		unavailable = true;
+		Astro.response.status = 503;
+	} else {
+		throw error;
+	}
+}
+
+if (!article && !unavailable) {
+	Astro.response.status = 404;
+}
+
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+	day: "2-digit",
+	month: "long",
+	year: "numeric",
+});
+---
+
+<SiteLayout
+	title={article?.title ?? (unavailable ? "Content unavailable" : "Article not found")}
+	description={article?.summary ?? "文章当前不可用。"}
+>
+	{
+		article ? (
+			<article>
+				<header class="article-header">
+					<p class="eyebrow">Article / {article.tags.join(" · ") || "Unfiled"}</p>
+					<h1>{article.title}</h1>
+					<p class="lead">{article.summary}</p>
+					<time class="meta" datetime={article.publishedAt}>
+						{dateFormatter.format(new Date(article.publishedAt))}
+					</time>
+				</header>
+				<div class="article-body">
+					<RenderTree nodes={article.renderTree} />
+				</div>
+			</article>
+		) : (
+			<section class="page-shell">
+				<p class="eyebrow">{unavailable ? "503 / CONTENT SERVICE" : "404 / NOT FOUND"}</p>
+				<h1 class="page-heading">{unavailable ? "内容服务暂时不可用" : "文章不存在"}</h1>
+				<p class="lead">
+					{unavailable ? "后台连接恢复后请重新访问。" : "这个地址没有对应的已发布文章。"}
+				</p>
+			</section>
+		)
+	}
+</SiteLayout>

@@ -1,0 +1,75 @@
+---
+import SiteLayout from "../layouts/SiteLayout.astro";
+import { contentClient } from "../lib/content-client";
+import { loadHomeContent } from "../lib/load-content";
+
+const { articles, projects, offline } = await loadHomeContent(contentClient);
+const latestArticles = articles.slice(0, 4);
+const featuredProjects = projects.filter((project) => project.featured).slice(0, 4);
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+	day: "2-digit",
+	month: "2-digit",
+	year: "numeric",
+});
+---
+
+<SiteLayout title="Home" description="文章、项目与持续积累的个人索引。">
+	<section class="page-shell">
+		<p class="eyebrow">Independent personal archive / 2026</p>
+		<h1 class="display-title">Ideas become useful when they are shared.</h1>
+		<p class="lead">
+			这是一个等待你填写的个人空间，用来发布文章、整理项目，并保留那些值得长期回看的思考。
+		</p>
+	</section>
+
+	<section class="section" aria-labelledby="latest-writing">
+		<div class="section-heading">
+			<h2 id="latest-writing">最新文章</h2>
+			<a href="/blog">查看全部 →</a>
+		</div>
+		{
+			latestArticles.length > 0 ? (
+				<ul class="index-list">
+					{latestArticles.map((article) => (
+						<li class="index-row">
+							<div>
+								<a href={`/blog/${article.slug}`}>{article.title}</a>
+								<div class="tag-list">{article.tags.map((tag) => <span>#{tag}</span>)}</div>
+							</div>
+							<time class="meta" datetime={article.publishedAt}>
+								{dateFormatter.format(new Date(article.publishedAt))}
+							</time>
+						</li>
+					))}
+				</ul>
+			) : (
+				<div class="empty-state">
+					{offline ? "内容服务尚未连接，完成后台配置后文章会显示在这里。" : "还没有发布文章。"}
+				</div>
+			)
+		}
+	</section>
+
+	<section class="section" aria-labelledby="selected-projects">
+		<div class="section-heading">
+			<h2 id="selected-projects">精选项目</h2>
+			<a href="/projects">查看全部 →</a>
+		</div>
+		{
+			featuredProjects.length > 0 ? (
+				<div class="project-grid">
+					{featuredProjects.map((project) => (
+						<article class="project-card">
+							<div class="meta">{project.year} / {project.platform} / {project.status}</div>
+							<h3>{project.name}</h3>
+							<p>{project.tagline}</p>
+							{project.liveUrl && <a href={project.liveUrl}>访问项目 ↗</a>}
+						</article>
+					))}
+				</div>
+			) : (
+				<div class="empty-state">还没有设置精选项目。</div>
+			)
+		}
+	</section>
+</SiteLayout>

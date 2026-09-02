@@ -1,0 +1,14 @@
+---
+import SiteLayout from "../layouts/SiteLayout.astro";
+
+export const prerender = true;
+---
+
+<SiteLayout title="Not found" description="页面不存在。">
+	<section class="page-shell">
+		<p class="eyebrow">404 / LOST INDEX</p>
+		<h1 class="page-heading">页面不存在</h1>
+		<p class="lead">地址可能已经变化，或者这个页面从未存在。</p>
+		<p><a href="/">返回首页 →</a></p>
+	</section>
+</SiteLayout>

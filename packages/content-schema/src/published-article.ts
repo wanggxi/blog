@@ -3,6 +3,7 @@ import { articleFieldsSchema } from "./article";
 import { renderTreeSchema } from "./render-tree";
 
 export const publishedArticleSchema = articleFieldsSchema
+	.omit({ sourceMdx: true })
 	.extend({
 		plainText: z.string(),
 		publishedAt: z.iso.datetime(),

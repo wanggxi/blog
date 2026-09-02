@@ -1,0 +1,24 @@
+{
+	"name": "@blog/web",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "astro build",
+		"dev": "astro dev --host 0.0.0.0",
+		"lint": "biome check src astro.config.ts",
+		"preview": "astro preview --host 0.0.0.0",
+		"test": "vitest run",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/node": "11.1.5",
+		"@blog/content-schema": "workspace:*",
+		"astro": "7.2.10",
+		"zod": "4.5.4"
+	},
+	"devDependencies": {
+		"@astrojs/check": "0.9.6",
+		"vitest": "4.1.11"
+	}
+}

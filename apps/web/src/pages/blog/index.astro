@@ -1,0 +1,44 @@
+---
+import SiteLayout from "../../layouts/SiteLayout.astro";
+import { contentClient } from "../../lib/content-client";
+import { loadHomeContent } from "../../lib/load-content";
+
+const { articles, offline } = await loadHomeContent(contentClient);
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+	day: "2-digit",
+	month: "2-digit",
+	year: "numeric",
+});
+---
+
+<SiteLayout title="Articles" description="按时间整理的文章索引。">
+	<header class="page-shell">
+		<p class="eyebrow">Writing / Notes / Field reports</p>
+		<h1 class="page-heading">文章</h1>
+		<p class="lead">按时间保存思考、过程和可以复用的方法。</p>
+	</header>
+	<section class="section">
+		{
+			articles.length > 0 ? (
+				<ul class="index-list">
+					{articles.map((article) => (
+						<li class="index-row">
+							<div>
+								<a href={`/blog/${article.slug}`}>{article.title}</a>
+								<p>{article.summary}</p>
+								<div class="tag-list">{article.tags.map((tag) => <span>#{tag}</span>)}</div>
+							</div>
+							<time class="meta" datetime={article.publishedAt}>
+								{dateFormatter.format(new Date(article.publishedAt))}
+							</time>
+						</li>
+					))}
+				</ul>
+			) : (
+				<div class="empty-state">
+					{offline ? "内容服务尚未连接。" : "还没有发布文章。"}
+				</div>
+			)
+		}
+	</section>
+</SiteLayout>
