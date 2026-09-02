@@ -1,0 +1,522 @@
+---
+title: ByteMd 主题切换功能
+date: 2021-05-19T16:00:00.000+00:00
+lang: zh-CN
+updated: 2021-05-20T16:00:00.000+00:00
+description: 聊聊markdown的多主题切换如何实现
+duration: 10min
+tags: AI,WEB
+---
+
+## 目标
+
+做成和掘金一样的，在toolbar栏添加markdown和highlight的主题切换，而且要尽量无感，选择>>输入
+
+![image-20220325191452614](http://img.mmifx.com/pic/202203251914485.png)
+
+## 主要思路
+
+1. 添加toolbar：`markdown`和`highlight`主题切换
+2. 切换按钮添加点击事件，转成 `yaml`格式 插入到`markdown`文本的最前面。
+3. 通过[@bytemd/plugin-frontmatter](https://github.com/bytedance/bytemd/blob/main/packages/plugin-frontmatter) 会自动提取第一个`yaml`为`file.frontmatter`对象
+4. Viewer加载插件，通过hook`ViewerEffect` 提取`file.frontmatter`对象的theme和highlight来加载指定css文件
+
+## 准备
+
+### 官方hooks图
+
+根据官方的Hooks图，我们是可以在`remark`和`rehype`阶段hook函数。
+
+![image-20220325192651784](http://img.mmifx.com/pic/202203251926942.png)
+
+### gfm
+
+再根据官方提供的插件:[@bytemd/plugin-gfm](https://github.com/bytedance/bytemd/blob/main/packages/plugin-gfm) 可以看到toolbar的添加方式，这个插件就是在toolbar自定义添加了三个按钮，即（删除线、ToDo和table
+
+![image-20220325191942734](http://img.mmifx.com/pic/202203252022245.png)
+
+我们看一下源码：
+
+```javascript
+//index.js
+import en from './locales/en.json';
+import remarkGfm from 'remark-gfm';
+import { icons } from './icons';
+export default function gfm({ locale: _locale, ...remarkGfmOptions } = {}) {
+    const locale = { ...en, ..._locale };
+    return {
+        //hook remark 
+        remark: (p) => p.use(remarkGfm, remarkGfmOptions),
+        // 添加actions
+        actions: [
+            {
+                title: locale.strike,
+                icon: icons.strikethrough,
+                cheatsheet: `~~${locale.strikeText}~~`,
+                handler: {
+                    // 类型
+                    type: 'action',
+                    //点击事件
+                    click({ wrapText, editor }) {
+                        wrapText('~~');
+                        editor.focus();
+                    },
+                },
+            },
+            {
+                title: locale.task,
+                icon: icons.task,
+                cheatsheet: `- [ ] ${locale.taskText}`,
+                handler: {
+                    type: 'action',
+                    click({ replaceLines, editor }) {
+                        replaceLines((line) => '- [ ] ' + line);
+                        editor.focus();
+                    },
+                },
+            },
+            {
+                title: locale.table,
+                icon: icons.table,
+                handler: {
+                    type: 'action',
+                    
+                    click({ editor, appendBlock, codemirror }) {
+                        const { line } = appendBlock(`| ${locale.tableHeading} |  |\n| --- | --- |\n|  |  |\n`);
+                        editor.setSelection(codemirror.Pos(line, 2), codemirror.Pos(line, 2 + locale.tableHeading.length));
+                        editor.focus();
+                    },
+                },
+            },
+        ],
+    };
+}
+```
+
+这里添加了三个按钮，并且设置对应的title、icon和点击事件。大概清楚了格式。
+
+但是现在我想要的是向下展开，不是直接点击，难道需要自己编写一个弹出层吗？
+
+这时候我注意到了H标签：![image-20220325193343370](http://img.mmifx.com/pic/202203251933972.png)
+
+### editor.js
+
+这不就是向下展开的吗？然后去找到了对应的`bytemd/lib/editor.js`文件，
+
+```javascript
+const items = [
+    {
+        icon: icons.heading,
+        handler: {
+            type: 'dropdown',
+            actions: [1, 2, 3, 4, 5, 6].map((level) => ({
+                title: locale[`h${level}`],
+                icon: icons[`h${level}`],
+                cheatsheet: level <= 3
+                ? `${'#'.repeat(level)} ${locale.headingText}`
+                : undefined,
+                handler: {
+                    type: 'action',
+                    click({ replaceLines, editor }) {
+                        replaceLines((line) => {
+                            line = line.trim().replace(/^#*/, '').trim();
+                            line = '#'.repeat(level) + ' ' + line;
+                            return line;
+                        });
+                        editor.focus();
+                    },
+                },
+            })),
+        },
+    },
+    //... more actions
+]
+```
+
+`handler.type`是可以设置为`dropdown`的，这样就会是以展开的形式出现。
+
+`handler.actions`又可以嵌套actions。
+
+## 开始
+
+根据官方的H标签的编写方式，来仿照着写一个`dropdown`类型的主题切换按钮。
+
+```javascript
+//引入icons:[]
+import {icons} from "./icons.js"
+//引入markdown主题名称集合 ：[]
+import {mdthems} from  "./mdThemes"
+//引入Highlights主题名称集合：[]
+import { highlights } from "./hightThems";
+
+//暴露出去的函数
+export default function customToolBar() {
+  return {
+    actions: [
+      {
+        title: "markdown主题",
+        icon: icons.theme,
+        handler: {
+          type: "dropdown",
+            //遍历并返回数组
+          actions: mdThemes.map((theme) => ({
+            title: theme,
+            //不需要图标，就留空了
+            icon: "",
+            cheatsheet: undefined,
+            handler: {
+              type: "action",
+              click({ editor }) {
+                  //点击事件 是编辑器对象
+                  // code here
+              },
+            },
+          })),
+        },
+      },
+      {
+        title: "代码高亮样式",
+        icon: icons.code_theme,
+        handler: {
+          type: "dropdown",
+          actions: highlights.map((theme) => ({
+            title: theme,
+            handler: {
+              type: "action",
+              click({ editor }) {
+                  //点击事件 editor 是编辑器对象
+                  // code here
+              },
+            },
+          })),
+        },
+      },
+    ],
+  };
+}
+
+```
+
+这样 大致框架就搭建 完了，完成了绑定好了对应的点击事件，现在需要解析
+
+## Editor对应文件
+
+### customTheme.js
+
+```javascript
+import { icons } from "./icons";
+import { highlights } from "./highThems";
+import { mdThemes } from "./mdThemes";
+//highlight css cdn
+const CODE_URL = "//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/";
+// markdown主题的cdn地址
+const THEME_URL = "// markdowntheme";
+//设置默认主题
+const CONFIG = {
+  theme: "channing-cyan",
+  highlight: "atom-one-dark",
+};
+
+const changeTheme = (themename) => {
+  // 判断是否存在？
+  const mdTheme =
+    document.head.querySelector("#MD_THEME") || document.createElement("link");
+  mdTheme.id = "MD_THEME";
+  mdTheme.rel = "stylesheet";
+  mdTheme.href = `${THEME_URL}${themename}.min.css`;
+  document.head.contains(mdTheme) ? "" : document.head.appendChild(mdTheme);
+};
+
+const changeCode = (themename) => {
+  // 判断是否存在？
+  const codeTheme =
+    document.head.querySelector("#CODE_THEME") ||
+    document.createElement("link");
+  codeTheme.id = "CODE_THEME";
+  codeTheme.rel = "stylesheet";
+  codeTheme.href = `${CODE_URL}${themename}.min.css`;
+  document.head.contains(codeTheme) ? "" : document.head.appendChild(codeTheme);
+};
+
+/**
+ * 解析内容 并修改config对象
+ * @param {*} editor
+ * @returns
+ */
+const parseConfig = (editor) => {
+  let evalue = editor.getValue();
+  // 匹配 --- ? ---
+  const reg = /---\n(.+\n)+---\n/;
+
+  try {
+    reg
+      .exec(evalue)[0]
+      .split("\n")
+      .filter((item) => item != "---" && item != "")
+      .forEach((item) => {
+        const _temp = item.split(": ");
+        CONFIG[_temp[0]] = _temp[1];
+      });
+  } catch (error) {
+    console.log("解析当前主题失败，使用默认配置");
+  }
+};
+
+/**
+ * 获取除了配置文件之外的内容
+ * @param {}} value
+ */
+const getRealValue = (value) => {
+  const res = /---\n(.+\n)+---\n/.exec(value);
+  return res == null ? value : value.substring(res[0].length);
+};
+
+/**
+ * 将配置文件转换为markdown并返回
+ * @param {*} editor
+ * @returns txt
+ */
+const configStringify = (editor) => {
+  return `---
+theme: ${CONFIG.theme}
+highlight: ${CONFIG.highlight}
+---
+${getRealValue(editor.getValue())}
+`;
+};
+export default function customTheme() {
+  changeCode("atom-one-dark");
+  changeTheme("cyanosis");
+  return {
+    actions: [
+      {
+        title: "markdown主题",
+        icon: icons.theme,
+        handler: {
+          type: "dropdown",
+          actions: mdThemes.map((theme) => ({
+            title: theme,
+            icon: "",
+            cheatsheet: undefined,
+            handler: {
+              type: "action",
+              click({ editor }) {
+                changeTheme(theme);
+                parseConfig(editor);
+                CONFIG.theme = theme;
+                editor.setValue(configStringify(editor));
+              },
+            },
+          })),
+        },
+      },
+      {
+        title: "代码高亮样式",
+        icon: icons.code_theme,
+        handler: {
+          type: "dropdown",
+          actions: highlights.map((theme) => ({
+            title: theme,
+            handler: {
+              type: "action",
+              click({ editor }) {
+                changeCode(theme);
+                parseConfig(editor);
+                CONFIG.highlight = theme;
+                editor.setValue(configStringify(editor));
+              },
+            },
+          })),
+        },
+      },
+    ],
+  };
+}
+```
+
+### icons.js
+
+```javascript
+export const icons = {
+  theme:
+    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 2H2.66667C2.29848 2 2 2.29848 2 2.66667V6C2 6.36819 2.29848 6.66667 2.66667 6.66667H6C6.36819 6.66667 6.66667 6.36819 6.66667 6V2.66667C6.66667 2.29848 6.36819 2 6 2Z" stroke="#1D2129" stroke-width="1.33" stroke-linejoin="round"></path><path d="M6 9.3335H2.66667C2.29848 9.3335 2 9.63197 2 10.0002V13.3335C2 13.7017 2.29848 14.0002 2.66667 14.0002H6C6.36819 14.0002 6.66667 13.7017 6.66667 13.3335V10.0002C6.66667 9.63197 6.36819 9.3335 6 9.3335Z" stroke="#1D2129" stroke-width="1.33" stroke-linejoin="round"></path><path d="M13.3334 2H10C9.63185 2 9.33337 2.29848 9.33337 2.66667V6C9.33337 6.36819 9.63185 6.66667 10 6.66667H13.3334C13.7016 6.66667 14 6.36819 14 6V2.66667C14 2.29848 13.7016 2 13.3334 2Z" stroke="#1D2129" stroke-width="1.33" stroke-linejoin="round"></path><path d="M13.3334 9.3335H10C9.63185 9.3335 9.33337 9.63197 9.33337 10.0002V13.3335C9.33337 13.7017 9.63185 14.0002 10 14.0002H13.3334C13.7016 14.0002 14 13.7017 14 13.3335V10.0002C14 9.63197 13.7016 9.3335 13.3334 9.3335Z" stroke="#1D2129" stroke-width="1.33" stroke-linejoin="round"></path></svg>',
+  code_theme:
+    '<svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" fill="white" fill-opacity="0.01"></rect><path d="M6 44L6 25H12V17H36V25H42V44H6Z" fill="none" stroke="#333" stroke-width="4" stroke-linejoin="round"></path><path d="M17 17V8L31 4V17" stroke="#333" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
+};
+
+```
+
+### mkTheme.js
+
+```javascript
+export const mdThemes = [
+  "smartblue",
+  "cyanosis",
+  "channing-cyan",
+  "fancy",
+  "hydrogen",
+  "condensed-night-purple",
+  "greenwillow",
+  "v-green",
+  "vue-pro",
+  "healer-readable",
+  "mk-cute",
+  "jzman",
+  "geek-black",
+  "awesome-green",
+  "orange",
+  "scrolls",
+  "simplicity-green",
+  "arknights",
+  "vuepress",
+  "Chinese-red",
+  "nico",
+  "devui-blue",
+];
+```
+
+### highThems.js
+
+```javascript
+export const highlights = [
+  "atom-one-dark",
+  "darcula",
+  "github",
+  "monokai-sublime",
+  "hybrid",
+  "night-owl",
+  "srcery",
+  "idea",
+  "shades-of-purple",
+  "xcode",
+];
+```
+
+### 组件中使用
+
+```vue
+<template>
+    <div class="byte-Editor">
+        <Editor
+			:value="content"
+			:plugins="plugins"
+			...
+        >
+        </Editor>
+	</div>
+</template>
+
+<script>
+//引入css文件
+import "bytemd/dist/index.min.css";
+//引入Viewer
+import { Editor } from "@bytemd/vue";
+// 初始化theme 加载theme.css
+import customTheme from "../../common/bytemd/pugins/customTheme";
+import frontmatter from "@bytemd/plugin-frontmatter";
+import highlightSsr from "@bytemd/plugin-highlight-ssr";
+// more plugins
+
+const plugins=[
+    frontmatter(),
+    highlightSsr(),
+    customTheme(),
+    ...
+]
+    
+export default{
+	data(){
+        return {
+            plugins，
+            content:"..."
+            ...
+        }
+    }    
+}
+</script>
+...
+```
+
+
+
+## Viewer对应的文件
+
+### initTheme.js
+
+```javascript
+//highlight css cdn
+const CODE_URL = "//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/";
+// markdown主题的cdn地址
+const THEME_URL = "// markdowntheme";
+
+export default function initTheme() {
+  return {
+    viewerEffect({ file }) {
+      const themes = file.frontmatter || {
+        theme: "channing-cyan",
+        highlight: "atom-one-dark",
+      };
+      const codeTheme =
+        document.head.querySelector("#CODE_THEME") ||
+        document.createElement("link");
+      codeTheme.id = "CODE_THEME";
+      codeTheme.rel = "stylesheet";
+      codeTheme.href = `${CODE_URL}${themes.highlight}.min.css`;
+      document.head.contains(codeTheme)
+        ? ""
+        : document.head.appendChild(codeTheme);
+      const mdTheme =
+        document.head.querySelector("#MD_THEME") ||
+        document.createElement("link");
+      mdTheme.id = "MD_THEME";
+      mdTheme.rel = "stylesheet";
+      mdTheme.href = `${THEME_URL}${themes.theme}.min.css`;
+      document.head.contains(mdTheme) ? "" : document.head.appendChild(mdTheme);
+    },
+  };
+}
+```
+
+### 组价中使用
+
+```vue
+<template>
+    <div class="byte-Viewer">
+        <Viewer
+			:value="content"
+			:plugins="plugins"
+			...
+        >
+        </Viewer>
+	</div>
+</template>
+
+<script>
+//引入css文件
+import "bytemd/dist/index.min.css";
+//引入Viewer
+import { Viewer } from "@bytemd/vue";
+// 初始化theme 加载theme.css
+import initTheme from "../../common/bytemd/pugins/initTheme";
+import frontmatter from "@bytemd/plugin-frontmatter";
+// more plugins
+
+const plugins=[
+    initTheme(),
+    frontmatter(),
+    ...
+    
+]
+    
+export default{
+	data(){
+        return {
+            plugins，
+            content:"..."
+            ...
+        }
+    }    
+}
+</script>
+```
+

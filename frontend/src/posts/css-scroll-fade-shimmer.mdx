@@ -1,0 +1,277 @@
+---
+title: 一个 CSS 文件里的两个巧思
+date: 2026-07-01
+lang: zh-CN
+hidden: false
+updated: 2026-07-01
+description: 拆解 shadcn/ui 最新加入的 scroll-fade 和 shimmer 如何用纯 CSS 实现过去必须靠 JS 的效果。
+duration: 12min
+tags: CSS,Tailwind,Animation,前端
+---
+
+> 这份 CSS 来自 shadcn/ui 仓库中的 `packages/shadcn/src/tailwind.css`。
+
+> 我将其提取成了独立包 [@wankong/shadcn-animate](https://github.com/wan-kong/shadcn-animate)。它只做两件事：滚动边缘渐隐（scroll-fade）和文字高光扫过（shimmer）。代码很短，而且设计的极为巧妙。
+
+## scroll-fade：滚动渐隐，零 JS
+
+### 传统做法 vs 这里的做法
+
+滚动容器的边缘渐隐很常见。列表太长、内容超出时，在边缘加一层渐变遮罩，用户一眼就知道还有内容。常见做法是拿两个伪元素盖在容器顶部和底部，再用 JS 监听 `scrollTop` 来显示或隐藏。
+
+这份 CSS 换了个角度：用 `mask-image` 直接遮内容本身，再用 `scroll()` timeline 改遮罩范围。伪元素和 `scroll` 监听都省了。
+
+<ScrollFadeDemo />
+
+### mask-image 怎么做到渐隐
+
+核心就一行渐变：
+
+```css
+linear-gradient(
+  to bottom,
+  transparent 0,
+  #000 var(--scroll-fade-t),
+  #000 calc(100% - var(--scroll-fade-b)),
+  transparent 100%
+)
+```
+
+这段渐变被当成蒙版使用：黑色区域可见，透明区域被遮掉。`--scroll-fade-t` 控制顶部 fade 的厚度，`--scroll-fade-b` 控制底部。把它设为 `mask-image`，边缘渐隐就有了。
+
+### fade 跟滚动位置绑定
+
+这里的 fade 会随着滚动位置变化，不再固定显示：
+
+```css
+animation: scroll-fade-reveal-t 1ms ease-in-out;
+animation-timeline: scroll(self y);
+animation-range: 0 calc(var(--spacing) * 24);
+animation-fill-mode: both;
+```
+
+动画本身很简单：`--scroll-fade-t` 从 `0px` 变到目标尺寸。关键是 `animation-timeline: scroll(self y)`，它把动画进度绑定到元素自身的纵向滚动位置，而不是时间。
+
+`animation-range` 则划定了生效区间。顶部 fade 的动画在滚动范围的前 24 个 spacing 单位内完成；底部 fade 正好反过来，在最后 24 个 spacing 单位内完成。
+
+效果大概是这样：
+
+- 在顶部时，顶部 fade 消失，避免暗示上面还有内容
+- 往下滚一点，顶部 fade 逐渐出现
+- 接近底部时，底部 fade 逐渐消失
+- 在底部时，底部 fade 收到 0
+
+也就是说，fade 状态直接由滚动位置决定。比起在 `scroll` 事件里算状态，这种写法更顺，也少了一段容易出问题的 JS。
+
+### @property 让自定义属性可动画
+
+光有 scroll timeline 还不够。CSS 自定义属性默认是离散变化的（相当于 `transition: none`），动画不会顺滑。所以文件开头注册了这些属性：
+
+```css
+@property --scroll-fade-t {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+```
+
+`@property` 是在告诉浏览器：`--scroll-fade-t` 是一个长度或百分比，可以平滑插值。这样 scroll-driven animation 把它从 `0px` 推到 `40px` 这类值时，中间不会突然跳一下，mask 渐变也会跟着顺滑变化。
+
+### API 设计：按 Tailwind 的习惯拆 utility
+
+它把方向拆成了一组 utility：
+
+```
+scroll-fade      → 四个方向
+scroll-fade-y    → 纵向（上下）
+scroll-fade-x    → 横向（左右）
+scroll-fade-t    → 仅顶部
+scroll-fade-b    → 仅底部
+scroll-fade-l    → 仅左侧
+scroll-fade-r    → 仅右侧
+scroll-fade-s    → logical start（代替 l）
+scroll-fade-e    → logical end（代替 r）
+```
+
+`s/e` 是逻辑方向而不是物理方向，会处理 RTL：
+
+```css
+&:where([dir="rtl"], [dir="rtl"] *) {
+  --scroll-fade-inline: linear-gradient(to left, ...)
+}
+```
+
+尺寸参数化也按 Tailwind v4 的写法来：
+
+```css
+@utility scroll-fade-* {
+  --scroll-fade-size: calc(var(--spacing) * --value(integer));
+  --scroll-fade-size: --value([length], [percentage]);
+}
+```
+
+可以这样写：
+
+```html
+<div class="scroll-fade scroll-fade-8">
+<div class="scroll-fade-y scroll-fade-t-4 scroll-fade-b-12">
+<div class="scroll-fade scroll-fade-[24px]">
+```
+
+整数走 spacing scale（`4` → 1rem，`8` → 2rem），也支持任意长度或百分比。
+
+### 降级策略
+
+实际项目里不能假设所有浏览器都支持 scroll-driven animation，所以这里留了 fallback：
+
+```css
+@supports (animation-timeline: scroll()) {
+  /* 支持：fade 随滚动动态变化 */
+}
+
+@supports not (animation-timeline: scroll()) {
+  --scroll-fade-t: var(--_scroll-fade-size-t);
+  --scroll-fade-b: var(--_scroll-fade-size-b);
+}
+```
+
+支持 scroll timeline 的浏览器会得到动态 fade。不支持的浏览器直接显示固定 fade，没那么聪明，但不会坏。这就是渐进增强：能用新能力就用，不能用也保持可读。
+
+## shimmer：文字扫描发光效果，一行 class 搞定
+
+### 用 background 画发光动画，而不是伪元素
+
+shimmer 的写法也挺省。它不额外放伪元素移动，直接改文字自己的 `background-image`：
+
+<ShimmerDemo />
+
+```css
+background-image: linear-gradient(
+  110deg,
+  currentColor calc(50% - var(--_spread)),
+  /* 高光区域 */ ...,
+  currentColor calc(50% + var(--_spread))
+);
+background-size: calc(200% + var(--_spread) * 2) 100%;
+background-clip: text;
+-webkit-text-fill-color: transparent;
+animation: tw-shimmer 2s linear infinite;
+```
+
+`background-clip: text` 把背景裁剪到文字形状，`-webkit-text-fill-color: transparent` 让文字本身透明，露出下面那层渐变。动画只改 `background-position`：
+
+```css
+@keyframes tw-shimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: 0 0; }
+}
+```
+
+它只改 background-position，不动 layout，也不会把整套结构搅一遍。
+
+### 颜色自动跟随 currentColor
+
+这个实现里我最喜欢的细节，是高光颜色没有写死成白色，它从 `currentColor` 算出来：
+
+```css
+--_base: currentColor;
+--_highlight: oklch(from currentColor l c h / calc(alpha * 0.2));
+```
+
+这样 shimmer 会跟着文字颜色走。蓝色文字就是蓝色系高光，红色文字就是红色系高光，不用每个主题单独配一遍。
+
+暗色模式下又自动提亮：
+
+```css
+@variant dark {
+  --_highlight: oklch(from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4));
+}
+```
+
+这里用的是 oklch，色相和色度基本不动，只调亮度和透明度。比写死 `white/30%` 稳一点，高光不会突然变成另一个颜色体系。
+
+### API 也按 utility 来拆
+
+```css
+shimmer
+shimmer-once          → 只播一次
+shimmer-reverse       → 反向
+shimmer-none          → 取消
+shimmer-color-*       → 高光颜色（支持 /alpha modifier）
+shimmer-duration-*    → 动画时长（ms）
+shimmer-spread-*      → 高光宽度
+shimmer-angle-*       → 高光角度（deg）
+```
+
+组合示例：
+
+```html
+<span class="shimmer shimmer-duration-1200 shimmer-angle-12 shimmer-spread-10">
+  正在加载...
+</span>
+```
+
+颜色支持 Tailwind 的 modifier 语法：
+
+```css
+@utility shimmer-color-* {
+  --shimmer-color: --value(--color, [color]);
+  --shimmer-color: color-mix(
+    in oklch,
+    --value(--color, [color]) calc(--modifier(integer) * 1%),
+    transparent
+  );
+}
+```
+
+所以 `shimmer-color-primary/40` 这种写法也能走通，会被解析成 `color-mix(in oklch, var(--color-primary) 40%, transparent)`。
+
+### 也照顾了无障碍
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+```
+
+开启"减少动态效果"后，用户不会看到持续闪烁的扫光动画，文字会回到正常渲染。
+
+## 兼容性说明
+
+这份 CSS 依赖的能力分两层：
+
+- **Tailwind v4 体系**：`@utility`、`--value()`、`@theme inline` 是 Tailwind v4 独有的。在 v3 项目中无法直接使用。
+- **`animation-timeline: scroll()`**：目前 Chromium 和 Firefox 已支持，Safari 的支持还不完整。不支持时走 fallback，效果是静态的固定 fade。
+
+如果项目还在 Tailwind v3，可以借它的思路，但需要改成传统写法。新项目如果已经是 Tailwind v4，引入之后直接加 class 就能用。
+
+## 安装方式
+
+如果项目是 React 版 shadcn/ui 技术栈，可以直接把 `shadcn` 包升级到最新版本，这两个 utility 已经内置了。
+
+如果用的是 shadcn-vue，可以安装 `@wankong/shadcn-animate`，然后在入口 CSS 中引入：
+
+
+```css
+@import "@wankong/shadcn-animate";
+```
+
+## 小结
+
+下次项目中需要滚动渐隐或者文字扫光效果的时候，可以少写一段 JS 了。
+
+[scroll-fade](https://ui.shadcn.com/docs/utils/scroll-fade)
+
+[shimmer](https://ui.shadcn.com/docs/utils/shimmer)
+
+<GithubCard
+  repo="wan-kong/shadcn-animate"
+  description="Standalone package for the Tailwind animation utilities from packages/shadcn/src/tailwind.css in shadcn/ui"
+  language="CSS"
+  languageColor="#563d7c"
+/>
+

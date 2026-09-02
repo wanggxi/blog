@@ -2,6 +2,16 @@ node_modules/
 .astro/
 .next/
 dist/
+out/
+frontend/.agents/
+frontend/.claude/
+frontend/.github/
+frontend/.vscode/
+frontend/docs/
+frontend/scripts/
+frontend/AGENTS.md
+frontend/CLAUDE.md
+frontend/skills-lock.json
 coverage/
 playwright-report/
 test-results/

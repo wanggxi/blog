@@ -3,7 +3,9 @@
 日期：2026-09-02
 状态：已完成会话设计确认，等待书面规格复核
 
-## 1. 背景与边界
+## 1. 背景与边界（历史规格）
+
+> 本文记录最初的 Astro 方案。经用户确认，公开前台已改为直接移植 `wan-kong/wankong.top` 的 Next.js 源代码；当前实施边界以 [`2026-09-02-wankong-frontend-transplant.md`](../plans/2026-09-02-wankong-frontend-transplant.md) 为准。
 
 本项目在全新的 `wanggxi/blog` 仓库中建设个人博客、项目展示站和内容管理后台。公开站点使用 Astro，后台使用 Payload CMS。内容存储在 PostgreSQL 中，图片存储在 Cloudflare R2 中；发布文章不依赖 Git 提交或重新构建，正常情况下应在 5 秒内对外可见。
 

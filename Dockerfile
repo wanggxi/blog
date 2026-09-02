@@ -14,14 +14,13 @@ COPY . .
 FROM base AS web-build
 RUN pnpm --filter @blog/web build
 
-FROM node:24-bookworm-slim AS web
+FROM base AS web
 ENV HOST=0.0.0.0
 ENV PORT=4321
 ENV NODE_ENV=production
-WORKDIR /app
-COPY --from=web-build /workspace/apps/web/dist ./dist
+COPY --from=web-build /workspace/apps/web/dist ./apps/web/dist
 EXPOSE 4321
-CMD ["node", "dist/server/entry.mjs"]
+CMD ["node", "apps/web/dist/server/entry.mjs"]
 
 FROM base AS cms-build
 ARG BUILD_DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build

@@ -46,7 +46,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ./frontend
       target: web
     restart: unless-stopped
     depends_on:
@@ -57,7 +57,7 @@ services:
       PUBLIC_CMS_URL: https://${ADMIN_HOST}
       PUBLIC_SITE_URL: https://${SITE_HOST}
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4321/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4321/"]
       interval: 10s
       timeout: 5s
       retries: 20

@@ -1,0 +1,104 @@
+---
+title: 我做了一个 Codex 重置监测，不再错过惊喜重置
+date: 2026-05-25
+lang: zh-CN
+hidden: false
+updated: 2026-07-10
+description: Codex 的 weekly 额度偶尔会惊喜重置，所以我做了一个邮件提醒服务
+duration: 6min
+tags: Codex,AI,Product
+---
+
+
+<Notice type="success" title="2026年7月10日更新">
+
+又开了一个Plus会员，服务使用了Tanstack Start重写
+
+也重新部署到了cloudflare，体验真不错啊。
+
+</Notice>
+
+<Notice type="warning" title="2026年6月11日更新">
+
+坏了，没赶上土耳其的原价续费，Codex Plus 会员掉了，该项目嘎了。。。
+
+</Notice>
+
+
+
+> 不使劲蹬，Codex 重置了就很亏；使劲蹬，额度没重置又不够用 :(
+
+之前我通过土耳其区 App Store [订阅了 ChatGPT Plus](/blog/how-order-gpt-in-app-store)。不用再心疼月费之后，Codex 很自然地从”偶尔问问代码”变成了真正干活的工具——排查问题、改代码、跑验证，一段任务连着推进好几个小时也是常有的事。
+
+5 小时额度到了，等一等通常还能续上；weekly 一旦用完，手头的活就只能先搁下了。
+
+不过 Codex 的服务器偶尔会抽风，补偿机制也就跟着触发了 :) 于是就有了「惊喜重置」这种东西 👍
+
+![Codex负责人的惊喜重置](/imgs/posts/codex-reset-x.webp)
+
+## 额度回来了，但我可能不知道
+
+提前重置当然是好事，问题在于——它从来不会刚好发生在我盯着页面的时候。
+
+如果正在等额度恢复，最笨的办法就是隔一会儿刷新一下用量页；如果先去做别的事了，等从群聊或者别人的消息里知道额度回来过，往往已经晚了几个小时。对靠 Codex 干活的人来说，这几个小时够干完一轮排查、写完一个页面，或者做完一次重构了。
+
+我需要的并不是又一个额度看板，而是一个很简单的提醒：
+
+**当 weekly 额度真的提前回来时，尽快告诉我。**
+
+于是我做了 [Codex 重置监测](https://codex.imoment.top)。
+
+## 如何使用
+
+这个服务的使用方式刻意压到了一步：打开 [codex.imoment.top](https://codex.imoment.top)，填个邮箱，剩下的等就行了。
+
+首页会展示最近一次重置时间和历史记录。如果你只想看看近期有没有出现过”补偿大礼包”，不订阅也能直接看。
+
+订阅后，一旦服务捕获到新的 weekly 重置事件，就会发一封提醒邮件。同一个邮箱不会重复订阅；邮件里也带了退订入口，不需要注册账号、也不需要重新登录就能退出。
+
+目前的检查是按小时轮询的，不是实时推送，所以邮件可能比实际重置晚到一小会儿。但它已经解决了最实际的问题：不用守着页面刷新，也不至于过了大半天才发现额度其实早就回来了。
+
+## 它如何知道发生了重置
+
+登录 ChatGPT 之后，Web 端会拉一份 Codex 用量数据，里面包含了各额度窗口的消耗比例和预计重置时间。监测任务盯的是这份数据里的 `secondary_window`，也就是 weekly 窗口。
+
+请求的形状大致如下。
+
+```http
+GET https://chatgpt.com/backend-api/wham/usage
+authorization: Bearer <server-side-token>
+```
+
+响应里跟监测相关的部分，简化下来长这样：
+
+```json
+{
+  "rate_limit": {
+    "allowed": true,
+    "limit_reached": false,
+    "primary_window": {
+      "used_percent": 75,
+      "limit_window_seconds": 18000,
+      "reset_after_seconds": 12992,
+      "reset_at": 1779707481
+    },
+    "secondary_window": {
+      "used_percent": 30,
+      "limit_window_seconds": 604800,
+      "reset_after_seconds": 509897,
+      "reset_at": 1780204386
+    }
+  }
+}
+```
+
+`primary_window` 表示 5 小时额度，`secondary_window` 表示 weekly 额度。`secondary_window.reset_at` 是当前 weekly 窗口预计结束的 Unix 时间戳；在额度提前恢复时，窗口信息和消耗比例会相应发生变化。
+
+
+```text
+定时检查 -> 获取 usage -> 提取 secondary_window -> 与上次快照比较
+                                                      |
+                                             发现新的重置
+                                                      |
+                                           记录事件并发送邮件
+```
