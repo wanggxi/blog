@@ -5,6 +5,7 @@ const deny = () => false;
 
 export const AuditEvents: CollectionConfig = {
 	slug: "audit-events",
+	labels: { singular: "审计事件", plural: "审计事件" },
 	access: { create: deny, delete: deny, read: isAuthenticated, update: deny },
 	admin: {
 		defaultColumns: ["action", "actorEmail", "createdAt"],

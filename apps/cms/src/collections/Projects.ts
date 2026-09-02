@@ -6,6 +6,7 @@ const publicProjects = ({ req }: Parameters<typeof isAuthenticated>[0]) =>
 
 export const Projects: CollectionConfig = {
 	slug: "projects",
+	labels: { singular: "项目", plural: "项目" },
 	access: {
 		create: isAuthenticated,
 		delete: isAuthenticated,
@@ -26,7 +27,13 @@ export const Projects: CollectionConfig = {
 			name: "status",
 			type: "select",
 			defaultValue: "building",
-			options: ["planned", "building", "beta", "live", "archived"],
+			options: [
+				{ label: "计划中", value: "planned" },
+				{ label: "开发中", value: "building" },
+				{ label: "测试版", value: "beta" },
+				{ label: "已上线", value: "live" },
+				{ label: "已归档", value: "archived" },
+			],
 			required: true,
 		},
 		{ name: "year", type: "text", label: "年份", required: true },

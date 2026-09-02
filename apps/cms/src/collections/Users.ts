@@ -3,6 +3,7 @@ import { isAuthenticated } from "../access/access";
 
 export const Users: CollectionConfig = {
 	slug: "users",
+	labels: { singular: "用户", plural: "用户" },
 	access: {
 		create: isAuthenticated,
 		delete: isAuthenticated,

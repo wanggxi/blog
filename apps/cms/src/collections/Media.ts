@@ -3,6 +3,7 @@ import { isAuthenticated } from "../access/access";
 
 export const Media: CollectionConfig = {
 	slug: "media",
+	labels: { singular: "媒体", plural: "媒体" },
 	access: {
 		create: isAuthenticated,
 		delete: isAuthenticated,

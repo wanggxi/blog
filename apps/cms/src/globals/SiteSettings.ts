@@ -3,6 +3,7 @@ import { isAuthenticated } from "../access/access";
 
 export const SiteSettings: GlobalConfig = {
 	slug: "site-settings",
+	label: "站点设置",
 	access: { read: () => true, update: isAuthenticated },
 	admin: { group: "网站", hidden: false },
 	fields: [

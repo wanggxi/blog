@@ -6,6 +6,7 @@ const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const Articles: CollectionConfig = {
 	slug: "articles",
+	labels: { singular: "文章", plural: "文章" },
 	access: {
 		create: isAuthenticated,
 		delete: isAuthenticated,
