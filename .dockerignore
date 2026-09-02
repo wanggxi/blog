@@ -1,0 +1,12 @@
+.git
+.github
+**/.astro
+**/.next
+**/dist
+**/node_modules
+.env
+.env.*
+!.env.example
+coverage
+data
+test-results

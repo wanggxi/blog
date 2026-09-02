@@ -1,7 +1,16 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
 	"files": {
-		"includes": ["**", "!**/*.astro", "!**/.astro", "!**/.next", "!**/dist"]
+		"includes": [
+			"**",
+			"!**/*.astro",
+			"!**/.astro",
+			"!**/.next",
+			"!**/dist",
+			"!apps/cms/src/payload-types.ts",
+			"!apps/cms/src/app/(payload)/admin/importMap.js",
+			"!apps/cms/src/migrations"
+		]
 	},
 	"formatter": {
 		"enabled": true,
